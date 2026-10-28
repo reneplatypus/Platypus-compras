@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic credit note: bare rFE (no DGI protocol), addressed to a final consumer, with a header discount. -->
+<rFE>
+  <dVerForm>1</dVerForm>
+  <dId>FE04200000000000-1-000001-0000002026101600000000050010110000000002</dId>
+  <gDGen>
+    <iAmb>1</iAmb>
+    <iDoc>04</iDoc>
+    <dNroDF>0000000005</dNroDF>
+    <dFechaEm>2026-10-16T00:00:00-05:00</dFechaEm>
+    <gEmis>
+      <gRucEmi><dTipoRuc>2</dTipoRuc><dRuc>0000000-1-000001</dRuc><dDV>42</dDV></gRucEmi>
+      <dNombEm>PROVEEDOR DE PRUEBA S A</dNombEm>
+    </gEmis>
+    <gDatRec>
+      <iTipoRec>02</iTipoRec>
+      <gRucRec><dTipoRuc>1</dTipoRuc><dRuc>8-000-000</dRuc></gRucRec>
+      <dNombRec>CONSUMIDOR FINAL</dNombRec>
+    </gDatRec>
+    <gDFRef>
+      <gDFRefNum><gDFRefFE><dCUFEFERef>FE01200000000000-1-000001-0000002026101500000012340010110000000001</dCUFEFERef></gDFRefFE></gDFRefNum>
+    </gDFRef>
+  </gDGen>
+  <gItem>
+    <dSecItem>1</dSecItem>
+    <dDescProd>Devolución A</dDescProd>
+    <dCantCodInt>1</dCantCodInt>
+    <gPrecios><dPrUnit>10.00</dPrUnit><dPrItem>10.00</dPrItem><dValTotItem>10.70</dValTotItem></gPrecios>
+    <gITBMSItem><dTasaITBMS>01</dTasaITBMS><dValITBMS>0.70</dValITBMS></gITBMSItem>
+  </gItem>
+  <gItem>
+    <dSecItem>2</dSecItem>
+    <dDescProd>Devolución B</dDescProd>
+    <dCantCodInt>1</dCantCodInt>
+    <gPrecios><dPrUnit>20.00</dPrUnit><dPrItem>20.00</dPrItem><dValTotItem>21.40</dValTotItem></gPrecios>
+    <gITBMSItem><dTasaITBMS>01</dTasaITBMS><dValITBMS>1.40</dValITBMS></gITBMSItem>
+  </gItem>
+  <gTot>
+    <dTotNeto>30.00</dTotNeto>
+    <dTotITBMS>2.10</dTotITBMS>
+    <dTotDesc>1.00</dTotDesc>
+    <dVTot>31.10</dVTot>
+  </gTot>
+</rFE>

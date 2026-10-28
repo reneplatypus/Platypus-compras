@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic invoice modeled on real PAC output: rContFe wrapper, DGI namespace, ISC + OTI on line 1. -->
+<rContFe xmlns="http://dgi-fep.mef.gob.pa/wsdl/FeRecepFE">
+  <xFe>
+    <rFE xmlns="http://dgi-fep.mef.gob.pa">
+      <dVerForm>1.00</dVerForm>
+      <dId>FE01200000000000-1-000001-0000002026101500000012340010110000000001</dId>
+      <gDGen>
+        <iAmb>1</iAmb>
+        <iDoc>01</iDoc>
+        <dNroDF>0000001234</dNroDF>
+        <dFechaEm>2026-10-15T09:30:00-05:00</dFechaEm>
+        <gEmis>
+          <gRucEmi><dTipoRuc>2</dTipoRuc><dRuc>0000000-1-000001</dRuc><dDV>42</dDV></gRucEmi>
+          <dNombEm>PROVEEDOR DE PRUEBA S A</dNombEm>
+        </gEmis>
+        <gDatRec>
+          <iTipoRec>01</iTipoRec>
+          <gRucRec><dTipoRuc>2</dTipoRuc><dRuc>155687144-2-2019</dRuc></gRucRec>
+          <dNombRec>PLATYPUS INC</dNombRec>
+        </gDatRec>
+      </gDGen>
+      <gItem>
+        <dSecItem>1</dSecItem>
+        <dDescProd>Servicio de datos</dDescProd>
+        <dCodProd>SRV1</dCodProd>
+        <dCantCodInt>1.00</dCantCodInt>
+        <dCodCPBScmp>8311</dCodCPBScmp>
+        <gPrecios><dPrUnit>25.00</dPrUnit><dPrItem>25.00</dPrItem><dValTotItem>28.02</dValTotItem></gPrecios>
+        <gITBMSItem><dTasaITBMS>01</dTasaITBMS><dValITBMS>1.75</dValITBMS></gITBMSItem>
+        <gISCItem><dTasaISC>0.0500</dTasaISC><dValISC>1.25</dValISC></gISCItem>
+        <gOTIItem><dCodOTI>02</dCodOTI><dValOTI>0.02</dValOTI></gOTIItem>
+      </gItem>
+      <gItem>
+        <dSecItem>2</dSecItem>
+        <dDescProd>Cargo exento</dDescProd>
+        <dCantCodInt>3.0</dCantCodInt>
+        <gPrecios><dPrUnit>1.333333</dPrUnit><dPrItem>4.000000</dPrItem><dValTotItem>4.000000</dValTotItem></gPrecios>
+        <gITBMSItem><dTasaITBMS>00</dTasaITBMS><dValITBMS>0.000000</dValITBMS></gITBMSItem>
+      </gItem>
+      <gTot>
+        <dTotNeto>29.00</dTotNeto>
+        <dTotITBMS>1.75</dTotITBMS>
+        <dTotISC>1.25</dTotISC>
+        <dVTot>32.02</dVTot>
+        <gOTITotal><dCodOTITotal>02</dCodOTITotal><dValOTITotal>0.02</dValOTITotal></gOTITotal>
+        <gPagPlazo><dSecItem>1</dSecItem><dFecItPlazo>2026-11-14T00:00:00-05:00</dFecItPlazo><dValItPlazo>32.02</dValItPlazo></gPagPlazo>
+      </gTot>
+    </rFE>
+  </xFe>
+  <xProtFe>
+    <rProtFe><gInfProt><dProtAut>0000000000000-0-00002026</dProtAut></gInfProt></rProtFe>
+  </xProtFe>
+</rContFe>
