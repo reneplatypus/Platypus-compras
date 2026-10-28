@@ -131,7 +131,10 @@ class Store:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.touch(mode=0o600, exist_ok=True)
         path.chmod(0o600)
-        self.db = sqlite3.connect(path)
+        # The web app, the Gmail intake and the InterFuerza check share this file: WAL lets readers
+        # continue during a write, and the timeout makes a writer wait instead of failing.
+        self.db = sqlite3.connect(path, timeout=30)
+        self.db.execute("PRAGMA journal_mode=WAL")
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
         for table, columns in MIGRATIONS.items():

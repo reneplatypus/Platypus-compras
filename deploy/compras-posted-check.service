@@ -1,0 +1,20 @@
+[Unit]
+Description=Platypus - Compras: verificar en InterFuerza que facturas ya estan registradas (solo lectura)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rene
+Group=rene
+WorkingDirectory=/opt/interfuerza/platypus-compras
+Environment=PYTHONUNBUFFERED=1
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/interfuerza/platypus-compras/data
+MemoryMax=150M
+Nice=10
+TimeoutStartSec=30min
+ExecStart=/opt/interfuerza/platypus-compras/.venv/bin/python -m compras.posted_check

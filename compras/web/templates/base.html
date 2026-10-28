@@ -4,18 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Compras{% endblock %} · Platypus</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/app.js" defer></script>
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="/facturas">Compras Platypus</a>
+    <a class="brand" href="/facturas"><img src="/static/logo-blanco.png" alt="Platypus"><span>Compras</span></a>
     {% if user %}
+    {% set current = request.query_params.get("status", "needs_review") if request.url.path == "/facturas" else "" %}
     <nav>
-      <a href="/facturas?status=needs_review">Por revisar</a>
-      <a href="/facturas?status=approved">Aprobadas</a>
-      <a href="/facturas?status=imported">En InterFuerza</a>
-      <a href="/facturas?status=rejected">Rechazadas</a>
+      {% for key, label in [("needs_review", "Por revisar"), ("approved", "Aprobadas"), ("imported", "En InterFuerza"),
+                            ("rejected", "Rechazadas")] %}
+      <a href="/facturas?status={{ key }}" class="{{ 'on' if current == key }}">{{ label }}</a>
+      {% endfor %}
     </nav>
     <span class="who">{{ user.name }} · {{ user.role }} · <a href="/salir">Salir</a></span>
     {% endif %}
