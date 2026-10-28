@@ -160,7 +160,8 @@ def invoice_detail(request: Request, invoice_id: int, error: str = "", ok: str =
         raise HTTPException(404, str(e))
     return templates.TemplateResponse(request, "factura.html", dict(
         user=user, master=md, error=error, ok=ok, can_edit=user["role"] in review.CAN_EDIT,
-        can_approve=user["role"] in review.CAN_APPROVE, **info))
+        can_approve=user["role"] in review.CAN_APPROVE,
+        blockers=review.approval_blockers(info, md, check_saved=False), **info))
 
 
 def _action(invoice_id: int, user, roles: set, what: str, fn, ok: str):
@@ -184,9 +185,16 @@ async def save_lines(request: Request, invoice_id: int, user=Depends(current_use
 
 
 @app.post("/facturas/{invoice_id}/aprobar")
-def approve(invoice_id: int, user=Depends(current_user), store: Store = Depends(get_store)):
+async def approve(request: Request, invoice_id: int, user=Depends(current_user), store: Store = Depends(get_store)):
+    """Sent by the lines form's "Guardar y aprobar": saves the accounts shown, then approves."""
+    form = await request.form()
+    try:
+        parts = review.parse_parts(list(form.multi_items()))
+    except review.ReviewError as e:
+        return back(invoice_id, error=str(e))
     return _action(invoice_id, user, review.CAN_APPROVE, "aprobar",
-                   lambda: review.approve(store, master(), invoice_id, user["email"], cfg.documents_dir), "Aprobada")
+                   lambda: review.save_and_approve(store, master(), invoice_id, user["email"], parts,
+                                                   cfg.documents_dir), "Aprobada")
 
 
 @app.post("/facturas/{invoice_id}/rechazar")

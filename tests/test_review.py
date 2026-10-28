@@ -85,6 +85,23 @@ class ReviewTest(unittest.TestCase):
         review.approve(self.store, self.master, self.id, "laura@x", self.docs)
         self.assertEqual(self.store.invoice(self.id)["if_dismissed"], "00010")
 
+    def test_save_and_approve_in_one_step(self):
+        self.map_provider()
+        parts = [(1, "ACC00014", D("26.27")), (2, "ACC00001", D("4.00"))]
+        review.save_and_approve(self.store, self.master, self.id, "rene@x", parts, self.docs)
+        self.assertEqual(self.store.invoice(self.id)["status"], "approved")
+        self.assertEqual(len(self.store.lines(self.id)), 2)
+
+    def test_save_and_approve_saves_nothing_when_blocked(self):
+        self.store.update_invoice(self.id, if_state="possible", if_purchase_id="02182")
+        self.map_provider()
+        info = review.detail(self.store, self.master, self.id)
+        self.assertTrue(any("02182" in b for b in review.approval_blockers(info, self.master, check_saved=False)))
+        parts = [(1, "ACC00014", D("26.27")), (2, "ACC00001", D("4.00"))]
+        with self.assertRaisesRegex(review.ReviewError, "02182"):
+            review.save_and_approve(self.store, self.master, self.id, "rene@x", parts, self.docs)
+        self.assertEqual(self.store.lines(self.id), [])
+
     def test_reject_and_reopen_move_folders(self):
         review.reject(self.store, self.id, "laura@x", "Gasto personal", self.docs)
         row = self.store.invoice(self.id)

@@ -114,14 +114,23 @@
             {% if amounts.residual %}<span class="small">Ajuste repartido en las líneas: {{ amounts.residual | money }}</span>{% endif %}</td></tr>
         </tfoot>
       </table>
-      {% if editable %}<button>Guardar cuentas</button>{% endif %}
-      {% if not saved and editable %}<span class="small">Cuentas sugeridas según compras anteriores del proveedor; revíselas y guarde.</span>{% endif %}
+      {% if not saved and editable %}<span class="small">Cuentas sugeridas según compras anteriores del proveedor; revíselas.</span>{% endif %}
+      {% if error %}<p class="msg error">{{ error }}</p>{% endif %}
+      {% if editable %}
+      {% if can_approve and blockers %}
+      <div class="blockers"><strong>Para aprobar falta:</strong>
+        <ul>{% for b in blockers %}<li>{{ b }}</li>{% endfor %}</ul></div>
+      {% endif %}
+      <div class="actions">
+        {% if can_approve %}
+        <button formaction="/facturas/{{ row.id }}/aprobar" {{ 'disabled' if blockers }}>Guardar y aprobar</button>
+        {% endif %}
+        <button class="secondary">Guardar cuentas</button>
+      </div>
+      {% endif %}
     </form>
 
     <div class="actions final">
-      {% if can_approve and row.status == "needs_review" %}
-      <form method="post" action="/facturas/{{ row.id }}/aprobar"><button>Aprobar</button></form>
-      {% endif %}
       {% if can_approve and row.status in ("needs_review", "approved") %}
       <form method="post" action="/facturas/{{ row.id }}/rechazar" class="inline">
         <input name="reason" placeholder="Motivo del rechazo" required>

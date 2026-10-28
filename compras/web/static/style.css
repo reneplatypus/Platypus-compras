@@ -76,6 +76,8 @@ input:focus, select:focus { outline: 2px solid var(--sky); outline-offset: 0; bo
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
 .actions.final { margin: 14px 0; }
 form.inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.blockers { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+.blockers ul { margin: 4px 0 0; padding-left: 18px; }
 .issues { padding-left: 18px; }
 .issues .error { color: var(--bad); }
 .issues .warning { color: var(--warn); }

@@ -164,26 +164,50 @@ def save_lines(store: Store, master: MasterData, invoice_id: int, user: str, par
     store.commit()
 
 
+def approval_blockers(info: dict, master: MasterData, check_saved: bool = True) -> list[str]:
+    """Why this invoice can't be approved yet (empty when it can). check_saved=False when the screen is
+    about to save the lines it shows, so only the other conditions matter."""
+    row = info["row"]
+    blockers = []
+    if row["status"] != "needs_review":
+        return [f"La factura está en estado {row['status']}"]
+    if row["if_state"] in ("posted", "possible"):
+        blockers.append(f"InterFuerza podría tener ya esta compra ({row['if_purchase_id']}): "
+                        "confirme «Sí, es la compra» o «No es esta compra»")
+    if not info["mapping"]:
+        blockers.append("Asigne el proveedor de InterFuerza")
+    blockers += [i["message"] for i in info["issues"] if i["severity"] == "error"]
+    if check_saved:
+        if not info["saved"]:
+            blockers.append("Guarde las cuentas de las líneas")
+        else:
+            parts = [(ln.seq, account, amount) for ln in info["lines"] for account, amount in ln.parts]
+            blockers += check_parts(info["lines"], parts, master, complete=True)
+    return blockers
+
+
 def approve(store: Store, master: MasterData, invoice_id: int, user: str, documents_dir: Path) -> None:
     info = detail(store, master, invoice_id)
-    row = info["row"]
-    _require(row, ("needs_review",), "aprobar")
-    if not info["saved"]:
-        raise ReviewError("Guarde las cuentas de las líneas antes de aprobar")
-    if not info["mapping"]:
-        raise ReviewError("Asigne el proveedor de InterFuerza antes de aprobar")
-    if row["if_state"] in ("posted", "possible"):
-        raise ReviewError("InterFuerza podría tener ya esta compra; verifique o márquela como registrada")
-    blocking = [i["message"] for i in info["issues"] if i["severity"] == "error"]
-    if blocking:
-        raise ReviewError("; ".join(blocking))
-    parts = [(ln["seq"], ln["account"], Decimal(ln["amount"])) for ln in store.lines(invoice_id)]
-    problems = check_parts(info["lines"], parts, master, complete=True)
-    if problems:
-        raise ReviewError("; ".join(problems))
+    _require(info["row"], ("needs_review",), "aprobar")
+    blockers = approval_blockers(info, master)
+    if blockers:
+        raise ReviewError("; ".join(blockers))
     store.set_status(invoice_id, "approved", documents_dir, approved_by=user, approved_at=_now())
     store.audit(user, invoice_id, "aprobar")
     store.commit()
+
+
+def save_and_approve(store: Store, master: MasterData, invoice_id: int, user: str, parts,
+                     documents_dir: Path) -> None:
+    """The screen's single "Guardar y aprobar": nothing is saved unless approval would also succeed."""
+    info = detail(store, master, invoice_id)
+    _require(info["row"], ("needs_review",), "aprobar")
+    blockers = approval_blockers(info, master, check_saved=False) + check_parts(info["lines"], parts, master,
+                                                                                complete=True)
+    if blockers:
+        raise ReviewError("; ".join(blockers))
+    save_lines(store, master, invoice_id, user, parts)
+    approve(store, master, invoice_id, user, documents_dir)
 
 
 def reject(store: Store, invoice_id: int, user: str, reason: str, documents_dir: Path) -> None:
