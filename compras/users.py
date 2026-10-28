@@ -5,6 +5,8 @@ Usage:
     python3 -m compras.users add <email> "<name>" <role>
     python3 -m compras.users disable <email>
 """
+import getpass
+import os
 import sys
 
 from .config import settings
@@ -14,7 +16,8 @@ from .store import Store
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
-    store = Store(settings().db_path)
+    os_user = os.environ.get("SUDO_USER") or getpass.getuser()
+    store = Store(settings().db_path, actor=f"cli:{os_user}")
     if argv[:1] == ["list"]:
         for u in store.users():
             print(f"{u['email']:35} {u['name']:28} {u['role']:9} {'activo' if u['active'] else 'inactivo'}")
@@ -23,7 +26,6 @@ def main(argv=None):
         if role not in ROLES:
             sys.exit(f"Rol inválido; use uno de {', '.join(ROLES)}")
         store.upsert_user(email, name, role)
-        store.audit(None, None, "usuario", f"{email} {role}")
         store.commit()
         print(f"{email} ({role}) activo")
     elif argv[:1] == ["disable"] and len(argv) == 2:
@@ -32,7 +34,6 @@ def main(argv=None):
             sys.exit("Usuario no encontrado")
         store.upsert_user(u["email"], u["name"], u["role"], active=False)
         store.db.execute("DELETE FROM sessions WHERE user_id = ?", (u["id"],))
-        store.audit(None, None, "usuario", f"{u['email']} desactivado")
         store.commit()
         print(f"{u['email']} desactivado")
     else:

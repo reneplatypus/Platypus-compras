@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .. import audit as audit_log
 from .. import auth, review
 from ..config import settings
 from ..store import Store
@@ -39,6 +40,7 @@ def money(value) -> str:
 
 
 templates.env.filters["money"] = money
+templates.env.filters["audit_detail"] = audit_log.describe
 
 
 @app.middleware("http")
@@ -82,6 +84,7 @@ def current_user(request: Request, store: Store = Depends(get_store)):
     user = auth.user_for_token(store, request.cookies.get(COOKIE))
     if not user:
         raise LoginRequired()
+    store.actor = user["email"]   # every change made through this request is audited under this user
     return user
 
 
@@ -229,6 +232,20 @@ def set_provider(invoice_id: int, provider_id: str = Form(""), user=Depends(curr
     return _action(invoice_id, user, review.CAN_EDIT, "asignar proveedores",
                    lambda: review.set_provider(store, master(), invoice_id, user["email"], provider_id.strip()),
                    "Proveedor asignado")
+
+
+@app.get("/auditoria")
+def audit_page(request: Request, actor: str = "", action: str = "", page: int = 1, user=Depends(current_user),
+               store: Store = Depends(get_store)):
+    require(user, review.CAN_APPROVE, "ver la auditoría")
+    page = max(page, 1)
+    rows = store.audit_log(limit=PAGE * 2, offset=(page - 1) * PAGE * 2, actor=actor.strip() or None,
+                           action=action or None)
+    actions = [r[0] for r in store.db.execute("SELECT DISTINCT action FROM audit ORDER BY action")]
+    problems = audit_log.verify(store)
+    return templates.TemplateResponse(request, "auditoria.html", dict(
+        user=user, rows=rows, actions=actions, filters=dict(actor=actor, action=action), page=page,
+        problems=problems, query=lambda **kw: urlencode({"actor": actor, "action": action, **kw})))
 
 
 @app.get("/documentos/{doc_id}")

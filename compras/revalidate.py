@@ -13,7 +13,7 @@ from .store import Store
 
 def main():
     cfg = settings()
-    store = Store(cfg.db_path)
+    store = Store(cfg.db_path, actor="sistema:revalidate")
     moved = updated = 0
     for row in store.invoices(("needs_review", "rejected")):
         folder = Path(row["folder"])

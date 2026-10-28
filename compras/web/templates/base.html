@@ -18,6 +18,9 @@
                             ("rejected", "Rechazadas")] %}
       <a href="/facturas?status={{ key }}" class="{{ 'on' if current == key }}">{{ label }}</a>
       {% endfor %}
+      {% if user.role in ("approver", "admin") %}
+      <a href="/auditoria" class="{{ 'on' if request.url.path == '/auditoria' }}">Auditoría</a>
+      {% endif %}
     </nav>
     <span class="who">{{ user.name }} · {{ user.role }} · <a href="/salir">Salir</a></span>
     {% endif %}

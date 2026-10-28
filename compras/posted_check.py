@@ -193,7 +193,7 @@ def _refs(rows) -> list[InvoiceRef]:
 def main():
     os.umask(0o077)
     cfg = settings()
-    store = Store(cfg.db_path)
+    store = Store(cfg.db_path, actor="sistema:posted_check")
     rows = store.invoices(("needs_review", "approved", "rejected", "imported"))
     credit_rows = [r for r in rows if r["doc_type"] in CREDIT_TYPES]
     invoices = _refs([r for r in rows if r["doc_type"] not in CREDIT_TYPES])
@@ -217,17 +217,18 @@ def main():
         (cache / "accounts.json").write_text(json.dumps(accounts, ensure_ascii=False))
     print(f"InterFuerza: {len(providers)} proveedores, {len(purchases)} compras vigentes desde {since}")
 
-    store.clear_auto_suppliers()
-    known = {ruc: m["provider_id"] for ruc, m in store.supplier_map().items()}
+    # Automatic mappings are recomputed each run around the manual ones; only real changes are audited.
+    known = {ruc: m["provider_id"] for ruc, m in store.supplier_map().items() if m["method"] == "manual"}
     by_total = defaultdict(list)
     for p in purchases:
         by_total[p.total.quantize(CENT)].append(p)
     names = {i.issuer_ruc: i.issuer_name for i in invoices}
-    for ruc, (pid, score) in map_by_name(invoices, providers, known).items():
-        store.set_supplier(ruc, names[ruc], pid, providers[pid], "name", score)
-    known = {ruc: m["provider_id"] for ruc, m in store.supplier_map().items()}
-    for ruc, (pid, share) in learn_mappings(invoices, by_total, known).items():
-        store.set_supplier(ruc, names[ruc], pid, providers.get(pid), "learned", share)
+    wanted = {ruc: (names[ruc], pid, providers[pid], "name", score)
+              for ruc, (pid, score) in map_by_name(invoices, providers, known).items()}
+    known.update({ruc: w[1] for ruc, w in wanted.items()})
+    wanted.update({ruc: (names[ruc], pid, providers.get(pid), "learned", share)
+                   for ruc, (pid, share) in learn_mappings(invoices, by_total, known).items()})
+    store.sync_auto_suppliers(wanted)
     known = {ruc: m["provider_id"] for ruc, m in store.supplier_map().items()}
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")

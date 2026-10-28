@@ -89,6 +89,8 @@ form.inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: cent
 .diff { color: var(--warn); }
 .lines tfoot td { border-bottom: 0; }
 .lines tr.strong td { font-weight: 600; }
+td.detail { font-size: 12px; word-break: break-word; }
+.nowrap { white-space: nowrap; }
 .history ul { padding-left: 18px; color: var(--muted); font-size: 12px; }
 @media (max-width: 1000px) {
   .split { grid-template-columns: 1fr; }

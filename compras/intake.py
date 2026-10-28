@@ -163,7 +163,7 @@ def run(since: str, limit: int | None, dry_run: bool) -> dict:
     if not cfg.gmail_user or not cfg.gmail_password:
         sys.exit("Faltan GMAIL_USER / GMAIL_APP_PASSWORD (ver .env)")
     os.umask(0o077)
-    store = Store(cfg.db_path)
+    store = Store(cfg.db_path, actor="sistema:intake")
     imap = imaplib.IMAP4_SSL("imap.gmail.com")
     imap.login(cfg.gmail_user, cfg.gmail_password)
     tally = {}

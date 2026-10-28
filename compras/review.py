@@ -158,9 +158,8 @@ def save_lines(store: Store, master: MasterData, invoice_id: int, user: str, par
     for seq, account, amount in parts:
         counter[seq] += 1
         numbered.append((seq, counter[seq], account, str(amount)))
-    store.replace_lines(invoice_id, numbered)
+    store.replace_lines(invoice_id, numbered)          # audits the before / after allocation
     store.update_invoice(invoice_id, reviewed_by=user, reviewed_at=_now())
-    store.audit(user, invoice_id, "guardar", "; ".join(f"{s}.{p} {a} {m}" for s, p, a, m in numbered))
     store.commit()
 
 
@@ -260,6 +259,5 @@ def set_provider(store: Store, master: MasterData, invoice_id: int, user: str, p
     if provider_id not in master.providers:
         raise ReviewError(f"Proveedor {provider_id} no existe en InterFuerza")
     store.set_supplier(row["issuer_ruc"], row["issuer_name"], provider_id, master.providers[provider_id],
-                       "manual", 1.0)
-    store.audit(user, invoice_id, "proveedor", f"{row['issuer_ruc']} → {provider_id}")
+                       "manual", 1.0)                  # audits the before / after mapping
     store.commit()

@@ -148,7 +148,7 @@
     {% if history %}
     <details class="history">
       <summary>Historial ({{ history | length }})</summary>
-      <ul>{% for h in history %}<li>{{ h.at[:16] }} · {{ h.user_email }} · {{ h.action }}{% if h.detail %} · {{ h.detail }}{% endif %}</li>{% endfor %}</ul>
+      <ul>{% for h in history %}<li>{{ h.at[:16] | replace("T", " ") }} · {{ h.user_email }} · <strong>{{ h.action }}</strong>{% if h.detail %} · {{ h.detail | audit_detail }}{% endif %}</li>{% endfor %}</ul>
     </details>
     {% endif %}
   </section>
