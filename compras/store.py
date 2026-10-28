@@ -56,6 +56,42 @@ CREATE TABLE IF NOT EXISTS supplier_map (
     score REAL,
     updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS invoice_lines (
+    invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+    seq INTEGER NOT NULL,              -- XML line (dSecItem)
+    part INTEGER NOT NULL,             -- split of that line across accounts, 1..n
+    account TEXT NOT NULL,             -- InterFuerza Internal_Code, e.g. ACC00014
+    amount TEXT NOT NULL,
+    PRIMARY KEY (invoice_id, seq, part)
+);
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,                -- viewer | preparer | approver | admin
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS login_codes (
+    email TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS audit (
+    id INTEGER PRIMARY KEY,
+    at TEXT NOT NULL,
+    user_email TEXT,
+    invoice_id INTEGER,
+    action TEXT NOT NULL,
+    detail TEXT
+);
 CREATE TABLE IF NOT EXISTS messages (
     gmail_msgid TEXT PRIMARY KEY,
     message_id TEXT,
@@ -76,7 +112,12 @@ MIGRATIONS = {
         ("if_purchase_id", "TEXT"),
         ("if_match_note", "TEXT"),
         ("if_checked_at", "TEXT"),
-        ("posted_via", "TEXT"),          # match (found already in InterFuerza) | app (posted by this app)
+        ("posted_via", "TEXT"),          # match (found in InterFuerza) | manual (marked by a reviewer) | app
+        ("reviewed_by", "TEXT"),
+        ("reviewed_at", "TEXT"),
+        ("approved_by", "TEXT"),
+        ("approved_at", "TEXT"),
+        ("if_dismissed", "TEXT"),        # purchase id a reviewer said is not this invoice
     ],
 }
 
@@ -153,6 +194,77 @@ class Store:
         for doc in self.db.execute("SELECT id, path FROM documents WHERE invoice_id = ?", (invoice_id,)).fetchall():
             self.db.execute("UPDATE documents SET path = ? WHERE id = ?", (str(new / Path(doc["path"]).name), doc["id"]))
         self.update_invoice(invoice_id, folder=str(new), **fields)
+
+    def invoice(self, invoice_id: int):
+        return self.db.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+
+    def documents(self, invoice_id: int):
+        return self.db.execute("SELECT * FROM documents WHERE invoice_id = ? ORDER BY kind DESC, id",
+                               (invoice_id,)).fetchall()
+
+    def document(self, doc_id: int):
+        return self.db.execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone()
+
+    def set_status(self, invoice_id: int, status: str, documents_dir: Path, **fields):
+        """Change status, moving the folder when the status lives under a different top-level folder."""
+        row = self.invoice(invoice_id)
+        old = Path(row["folder"])
+        top = FOLDERS[status]
+        if old.relative_to(documents_dir).parts[0] != top:
+            new = documents_dir.joinpath(top, *old.relative_to(documents_dir).parts[1:])
+            self.move_invoice(invoice_id, old, new, status=status, **fields)
+        else:
+            self.update_invoice(invoice_id, status=status, **fields)
+
+    def lines(self, invoice_id: int) -> list:
+        return self.db.execute("SELECT * FROM invoice_lines WHERE invoice_id = ? ORDER BY seq, part",
+                               (invoice_id,)).fetchall()
+
+    def replace_lines(self, invoice_id: int, parts: list[tuple[int, int, str, str]]):
+        """parts: (seq, part, account, amount)."""
+        self.db.execute("DELETE FROM invoice_lines WHERE invoice_id = ?", (invoice_id,))
+        self.db.executemany("INSERT INTO invoice_lines (invoice_id, seq, part, account, amount) VALUES (?, ?, ?, ?, ?)",
+                            [(invoice_id, *p) for p in parts])
+
+    def audit(self, user_email, invoice_id, action, detail=None):
+        self.db.execute("INSERT INTO audit (at, user_email, invoice_id, action, detail) VALUES (?, ?, ?, ?, ?)",
+                        (_now(), user_email, invoice_id, action, detail))
+
+    def history(self, invoice_id: int):
+        return self.db.execute("SELECT * FROM audit WHERE invoice_id = ? ORDER BY id DESC", (invoice_id,)).fetchall()
+
+    def search(self, status=None, if_state=None, supplier=None, month=None, limit=50, offset=0):
+        where, args = [], []
+        if status:
+            where.append("status = ?"); args.append(status)
+        if if_state == "unchecked":
+            where.append("if_state IS NULL")
+        elif if_state:
+            where.append("if_state = ?"); args.append(if_state)
+        if supplier:
+            where.append("(issuer_name LIKE ? OR issuer_ruc LIKE ?)"); args += [f"%{supplier}%"] * 2
+        if month:
+            where.append("substr(issued_at, 1, 7) = ?"); args.append(month)
+        clause = ("WHERE " + " AND ".join(where)) if where else ""
+        total = self.db.execute(f"SELECT COUNT(*), COALESCE(SUM(CAST(total AS REAL)), 0) FROM invoices {clause}",
+                                args).fetchone()
+        rows = self.db.execute(f"SELECT * FROM invoices {clause} ORDER BY issued_at DESC, id DESC LIMIT ? OFFSET ?",
+                               (*args, limit, offset)).fetchall()
+        return rows, total[0], total[1]
+
+    # users and sessions
+
+    def user_by_email(self, email: str):
+        return self.db.execute("SELECT * FROM users WHERE email = ? AND active = 1", (email.lower(),)).fetchone()
+
+    def users(self):
+        return self.db.execute("SELECT * FROM users ORDER BY active DESC, name").fetchall()
+
+    def upsert_user(self, email: str, name: str, role: str, active: bool = True):
+        self.db.execute(
+            """INSERT INTO users (email, name, role, active, created_at) VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(email) DO UPDATE SET name = excluded.name, role = excluded.role, active = excluded.active""",
+            (email.lower(), name, role, int(active), _now()))
 
     def supplier_map(self) -> dict:
         return {r["issuer_ruc"]: r for r in self.db.execute("SELECT * FROM supplier_map")}

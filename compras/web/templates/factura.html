@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ row.issuer_name }} {{ row.number }}{% endblock %}
+{% macro account_select(seq, selected, editable) %}
+<select name="account_{{ seq }}" {{ 'disabled' if not editable }}>
+  <option value="">— cuenta —</option>
+  {% if suggested %}
+  <optgroup label="Sugeridas para este proveedor">
+    {% for code in suggested %}<option value="{{ code }}" {{ 'selected' if code == selected }}>{{ master.label(code) }}</option>{% endfor %}
+  </optgroup>
+  {% endif %}
+  {% for group in master.line_accounts | groupby("Type") %}
+  <optgroup label="{{ group.grouper }}">
+    {% for a in group.list if a.Internal_Code not in suggested %}
+    <option value="{{ a.Internal_Code }}" {{ 'selected' if a.Internal_Code == selected }}>{{ a.Codigo }} {{ a.Name }}</option>
+    {% endfor %}
+  </optgroup>
+  {% endfor %}
+</select>
+{% endmacro %}
+{% block body %}
+{% set editable = can_edit and row.status == "needs_review" %}
+<p class="crumbs"><a href="/facturas?status={{ row.status }}">← {{ STATUS_LABELS[row.status] }}</a></p>
+{% if error %}<p class="msg error">{{ error }}</p>{% endif %}
+{% if ok %}<p class="msg ok">{{ ok }}</p>{% endif %}
+
+<div class="split">
+  <section class="doc">
+    {% if pdfs %}
+    <iframe src="/documentos/{{ pdfs[0].id }}" title="PDF de la factura"></iframe>
+    {% else %}
+    <p class="empty">Esta factura no trajo PDF.</p>
+    {% endif %}
+    <p class="files">{% for d in docs %}<a href="/documentos/{{ d.id }}" target="_blank">{{ d.kind | upper }}: {{ d.filename }}</a>{% endfor %}</p>
+  </section>
+
+  <section class="panel">
+    <h1>{{ row.issuer_name }}</h1>
+    <dl class="facts">
+      <dt>Documento</dt><dd>{{ doc_type }} {{ row.number }} · {{ row.issued_at[:10] }}</dd>
+      <dt>RUC emisor</dt><dd>{{ row.issuer_ruc }}</dd>
+      <dt>Estado</dt><dd>{{ STATUS_LABELS[row.status] }}{% if row.status_reason %} — {{ row.status_reason }}{% endif %}</dd>
+      {% if row.approved_by %}<dt>Aprobada por</dt><dd>{{ row.approved_by }} · {{ row.approved_at[:16] }}</dd>{% endif %}
+      <dt>CUFE</dt><dd class="mono small">{{ row.cufe }}</dd>
+    </dl>
+
+    <div class="box if-{{ row.if_state or 'none' }}">
+      <strong>InterFuerza: {{ IF_LABELS[row.if_state] }}</strong>
+      {% if row.if_match_note %}<p>{{ row.if_match_note }}</p>{% endif %}
+      {% if can_edit and row.status == "needs_review" %}
+      <div class="actions">
+        {% if row.if_state in ("posted", "possible") %}
+        <form method="post" action="/facturas/{{ row.id }}/registrada">
+          <input type="hidden" name="purchase_id" value="{{ row.if_purchase_id }}">
+          <button>Sí, es la compra {{ row.if_purchase_id }}</button>
+        </form>
+        <form method="post" action="/facturas/{{ row.id }}/descartar"><button class="secondary">No es esta compra</button></form>
+        {% else %}
+        <form method="post" action="/facturas/{{ row.id }}/registrada" class="inline">
+          <input name="purchase_id" placeholder="Nº de compra" size="8">
+          <button class="secondary">Ya está en InterFuerza</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="box">
+      <strong>Proveedor en InterFuerza:</strong>
+      {% if mapping %}{{ mapping.provider_name }} ({{ mapping.provider_id }}, {{ mapping.method }}){% else %}<span class="warn">sin asignar</span>{% endif %}
+      {% if editable %}
+      <form method="post" action="/facturas/{{ row.id }}/proveedor" class="inline">
+        <select name="provider_id" required>
+          <option value="">— elegir —</option>
+          {% for pid, pname in master.providers | dictsort(by="value") %}
+          <option value="{{ pid }}" {{ 'selected' if mapping and mapping.provider_id == pid }}>{{ pname }} ({{ pid }})</option>
+          {% endfor %}
+        </select>
+        <button class="secondary">{{ "Cambiar" if mapping else "Asignar" }}</button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if issues %}
+    <ul class="issues">
+      {% for i in issues %}<li class="{{ i.severity }}">{{ i.message }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" action="/facturas/{{ row.id }}/lineas" id="lines">
+      <table class="lines">
+        <thead><tr><th>Línea</th><th class="num">Costo</th><th>Cuenta</th><th class="num">Monto</th><th></th></tr></thead>
+        {% for ln in lines %}
+        <tbody class="line" data-cost="{{ ln.cost }}">
+          {% for account, amount in ln.parts %}
+          <tr class="part">
+            {% if loop.first %}
+            <td rowspan="{{ ln.parts | length }}" class="desc">{{ ln.seq }}. {{ ln.description }}
+              <span class="small">× {{ ln.qty | money }}</span>
+              {% if ln.folded_taxes %}<span class="small">incluye ISC/otros {{ ln.folded_taxes | money }}</span>{% endif %}</td>
+            <td rowspan="{{ ln.parts | length }}" class="num">{{ ln.cost | money }}</td>
+            {% endif %}
+            <td>{{ account_select(ln.seq, account, editable) }}</td>
+            <td class="num"><input name="amount_{{ ln.seq }}" value="{{ amount }}" inputmode="decimal" size="9"
+                                   {{ 'readonly' if not editable }}></td>
+            <td>{% if editable %}<button type="button" class="link split-btn" title="Dividir en otra cuenta">+ dividir</button>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% endfor %}
+        <tfoot>
+          <tr><td>Subtotal</td><td class="num">{{ amounts.subtotal | money }}</td><td colspan="3"></td></tr>
+          <tr><td>ITBMS (Impuestos)</td><td class="num">{{ amounts.itbms | money }}</td><td colspan="3"></td></tr>
+          <tr class="strong"><td>Total</td><td class="num">{{ amounts.total | money }}</td><td colspan="3">
+            {% if amounts.residual %}<span class="small">Ajuste repartido en las líneas: {{ amounts.residual | money }}</span>{% endif %}</td></tr>
+        </tfoot>
+      </table>
+      {% if editable %}<button>Guardar cuentas</button>{% endif %}
+      {% if not saved and editable %}<span class="small">Cuentas sugeridas según compras anteriores del proveedor; revíselas y guarde.</span>{% endif %}
+    </form>
+
+    <div class="actions final">
+      {% if can_approve and row.status == "needs_review" %}
+      <form method="post" action="/facturas/{{ row.id }}/aprobar"><button>Aprobar</button></form>
+      {% endif %}
+      {% if can_approve and row.status in ("needs_review", "approved") %}
+      <form method="post" action="/facturas/{{ row.id }}/rechazar" class="inline">
+        <input name="reason" placeholder="Motivo del rechazo" required>
+        <button class="danger">Rechazar</button>
+      </form>
+      {% endif %}
+      {% if can_approve and row.status in ("approved", "rejected") %}
+      <form method="post" action="/facturas/{{ row.id }}/reabrir"><button class="secondary">Devolver a revisión</button></form>
+      {% endif %}
+      {% if row.status == "approved" %}
+      <button disabled title="Fase 3: requiere autorización de escritura en InterFuerza">Contabilizar en InterFuerza</button>
+      {% endif %}
+    </div>
+
+    {% if history %}
+    <details class="history">
+      <summary>Historial ({{ history | length }})</summary>
+      <ul>{% for h in history %}<li>{{ h.at[:16] }} · {{ h.user_email }} · {{ h.action }}{% if h.detail %} · {{ h.detail }}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Ingreso{% endblock %}
+{% block body %}
+<section class="login">
+  <h1>Ingreso</h1>
+  {% if step == "email" %}
+  <form method="post" action="/ingreso">
+    <label>Correo <input type="email" name="email" required autofocus autocomplete="email"></label>
+    <button>Enviar código</button>
+  </form>
+  {% else %}
+  <p>Si <strong>{{ email }}</strong> tiene acceso, le enviamos un código de 6 dígitos.</p>
+  {% if error %}<p class="msg error">{{ error }}</p>{% endif %}
+  <form method="post" action="/ingreso/codigo">
+    <input type="hidden" name="email" value="{{ email }}">
+    <label>Código <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autofocus
+                         autocomplete="one-time-code"></label>
+    <button>Ingresar</button>
+  </form>
+  <p><a href="/ingreso">Usar otro correo</a></p>
+  {% endif %}
+</section>
+{% endblock %}

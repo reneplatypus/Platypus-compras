@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Facturas{% endblock %}
+{% block body %}
+<div class="tabs">
+  {% for key, label in STATUS_LABELS.items() if key != "error" %}
+  <a href="/facturas?{{ query(status=key, page=1) }}" class="{{ 'on' if filters.status == key }}">
+    {{ label }} <span class="count">{{ counts.get(key, 0) }}</span></a>
+  {% endfor %}
+  <a href="/facturas?{{ query(status='', page=1) }}" class="{{ 'on' if not filters.status }}">Todas</a>
+</div>
+
+<form class="filters" method="get" action="/facturas">
+  <input type="hidden" name="status" value="{{ filters.status }}">
+  <label>InterFuerza
+    <select name="if_state">
+      <option value="">Todas</option>
+      {% for key, label in [("not_posted", "No registrada"), ("possible", "Posible"), ("posted", "Registrada"),
+                            ("unchecked", "Sin verificar")] %}
+      <option value="{{ key }}" {{ 'selected' if filters.if_state == key }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Mes
+    <select name="month">
+      <option value="">Todos</option>
+      {% for m in months %}<option {{ 'selected' if filters.month == m }}>{{ m }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Proveedor o RUC <input name="q" value="{{ filters.q }}"></label>
+  <button>Filtrar</button>
+</form>
+
+<p class="summary">{{ count }} facturas · total ${{ amount | money }}</p>
+
+<div class="table-wrap">
+<table class="list">
+  <thead><tr><th>Fecha</th><th>Proveedor</th><th>Número</th><th class="num">Total</th><th>InterFuerza</th>
+    <th>Avisos</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.issued_at[:10] }}</td>
+      <td><a href="/facturas/{{ r.id }}">{{ r.issuer_name }}</a>
+        {% if r.doc_type in ("04", "06") %}<span class="tag">Nota de crédito</span>{% endif %}</td>
+      <td>{{ r.number }}</td>
+      <td class="num">{{ r.total | money }}</td>
+      <td><span class="badge if-{{ r.if_state or 'none' }}">{{ IF_LABELS[r.if_state] }}</span></td>
+      <td>{% if r.issues != "[]" %}<span class="warn" title="Tiene avisos">⚠</span>{% endif %}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="empty">No hay facturas con estos filtros.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if pages > 1 %}
+<nav class="pager">
+  {% if page > 1 %}<a href="/facturas?{{ query(page=page - 1) }}">← Anterior</a>{% endif %}
+  <span>Página {{ page }} de {{ pages }}</span>
+  {% if page < pages %}<a href="/facturas?{{ query(page=page + 1) }}">Siguiente →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

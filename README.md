@@ -34,3 +34,13 @@ COMPRAS_GMAIL_SINCE). The InterFuerza token is read from `/opt/interfuerza/inter
 Uses only the standard library. `RealSamplesTest` also runs every XML under `/opt/interfuerza/samples`
 (override with `COMPRAS_SAMPLES`) and is skipped when that folder is absent. Real supplier
 documents stay out of git.
+
+## Review screen
+
+    .venv/bin/pip install -r requirements.txt          # once
+    .venv/bin/python -m compras.users add <email> "<name>" <viewer|preparer|approver|admin>
+    COMPRAS_DEV_LOGIN=1 .venv/bin/uvicorn compras.web.app:app --host 127.0.0.1 --port 8400
+
+Login is a 6-digit code emailed from GMAIL_USER (`COMPRAS_DEV_LOGIN=1` prints it to the log instead).
+Needs `COMPRAS_SECRET` (32+ chars) in `.env`. Preparers assign accounts (lines can be split across
+accounts); approvers also approve, reject and reopen. Posting to InterFuerza is not enabled yet.

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Compras{% endblock %} · Platypus</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/facturas">Compras Platypus</a>
+    {% if user %}
+    <nav>
+      <a href="/facturas?status=needs_review">Por revisar</a>
+      <a href="/facturas?status=approved">Aprobadas</a>
+      <a href="/facturas?status=imported">En InterFuerza</a>
+      <a href="/facturas?status=rejected">Rechazadas</a>
+    </nav>
+    <span class="who">{{ user.name }} · {{ user.role }} · <a href="/salir">Salir</a></span>
+    {% endif %}
+  </header>
+  <main>{% block body %}{% endblock %}</main>
+</body>
+</html>

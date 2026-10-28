@@ -212,6 +212,9 @@ def main():
         (cache / "providers.json").write_text(json.dumps(providers, ensure_ascii=False))
         (cache / "purchases.json").write_text(json.dumps(records, ensure_ascii=False))
     purchases = purchases_from(records)
+    if "--cached" not in sys.argv:
+        accounts = list(client.all_pages("acc_accounts", "acc_accounts"))
+        (cache / "accounts.json").write_text(json.dumps(accounts, ensure_ascii=False))
     print(f"InterFuerza: {len(providers)} proveedores, {len(purchases)} compras vigentes desde {since}")
 
     store.clear_auto_suppliers()
@@ -233,6 +236,8 @@ def main():
     moved = Counter()
     for cufe, (state, pid, note) in results.items():
         row = by_cufe[cufe]
+        if pid and pid == row["if_dismissed"]:
+            state, pid, note = "not_posted", None, row["if_match_note"]
         store.update_invoice(row["id"], if_state=state, if_purchase_id=pid, if_match_note=note, if_checked_at=now)
         move = _folder_move(row, state, pid, cfg.documents_dir)
         if move:
